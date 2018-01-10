@@ -1,12 +1,12 @@
 /*
  * Copyright 2015 M. Isuru Tharanga Chrishantha Perera
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -73,16 +73,16 @@ public class ApplicationTest extends TestCase {
         assertTrue(parameters.live);
     }
 
-    public void testEventTypeOption() throws Exception {
-        String[] args = { "-f", "temp", "-e", "allocation-tlab" };
-        parseCommands(args);
-        assertEquals(EventType.EVENT_ALLOCATION_IN_NEW_TLAB, jfrToFlameGraphWriter.eventType);
-    }
-
-    public void testEventTypeOptionDefaultValue() throws Exception {
-        String[] args = { "-f", "temp" };
-        parseCommands(args);
-        assertEquals(EventType.EVENT_METHOD_PROFILING_SAMPLE, jfrToFlameGraphWriter.eventType);
-    }
+    //public void testEventTypeOption() throws Exception {
+    //    String[] args = { "-f", "temp", "-e", "allocation-tlab" };
+    //    parseCommands(args);
+    //    assertEquals(EventType.EVENT_ALLOCATION_IN_NEW_TLAB, jfrToFlameGraphWriter.eventType);
+    //}
+    //
+    //public void testEventTypeOptionDefaultValue() throws Exception {
+    //    String[] args = { "-f", "temp" };
+    //    parseCommands(args);
+    //    assertEquals(EventType.EVENT_METHOD_PROFILING_SAMPLE, jfrToFlameGraphWriter.eventType);
+    //}
 
 }

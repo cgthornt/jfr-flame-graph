@@ -1,12 +1,12 @@
 /*
  * Copyright 2015 M. Isuru Tharanga Chrishantha Perera
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -29,6 +29,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
+import java.util.HashSet;
 import java.util.Stack;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
@@ -90,9 +91,9 @@ public final class JFRToFlameGraphWriter {
     @Parameter(names = { "-et", "--end-timestamp" }, description = "End timestamp in seconds for filtering")
     long endTimestamp;
 
-    @Parameter(names = { "-e",
-            "--event" }, description = "Type of event used to generate the flamegraph", converter = EventType.EventTypeConverter.class)
-    EventType eventType = EventType.EVENT_METHOD_PROFILING_SAMPLE;
+    @Parameter(names = { "-e", "--profile-type" }, description = "1. CPU profile 2. Off-CPU Profile")
+    int profileType;
+
 
     private static final String EVENT_VALUE_STACK = "(stackTrace)";
 
@@ -101,6 +102,7 @@ public final class JFRToFlameGraphWriter {
     private static final String PRINT_FORMAT = "%-16s: %s%n";
 
     private static final String DURATION_FORMAT = "{0} h {1} min";
+    private HashSet<String> eventSet = new HashSet<String>();
 
     public JFRToFlameGraphWriter(OutputWriterParameters parameters) {
         outputType.getFlameGraphOutputWriter().initialize(parameters);
@@ -124,8 +126,34 @@ public final class JFRToFlameGraphWriter {
             printJFRDetails(recording);
             return;
         }
+        //Prepare the list of events
+      switch (profileType) {
+        case 1:
+          System.err.println("CPU profiling");
+          eventSet.add("Method Profiling Sample");
+          System.err.println("CPU profiling:"+ eventSet);
 
-        // Filter if start or end timestamp is passed as options
+          break;
+        case 2:
+          eventSet.add("Java Thread Park");
+          eventSet.add("Socket Read");
+          eventSet.add("Socket Write");
+          eventSet.add("File Write");
+          eventSet.add("File Read");
+          eventSet.add("Java Monitor Wait");
+          eventSet.add("Java Monitor Blocked");
+          eventSet.add("Java Thread Sleep");
+          System.err.println("Off-CPU profiling:"+ eventSet);
+
+          break;
+        default:
+          System.err.println("Invalid Profile type (It should be 1 or 2)");
+          System.exit(1);
+          break;
+      }
+
+
+      // Filter if start or end timestamp is passed as options
         final boolean filter = startTimestamp > 0 || endTimestamp > 0;
         startTimestamp = TimeUnit.SECONDS.toNanos(startTimestamp);
         endTimestamp = TimeUnit.SECONDS.toNanos(endTimestamp);
@@ -133,21 +161,21 @@ public final class JFRToFlameGraphWriter {
         FlameGraphOutputWriter flameGraphOutputWriter = outputType.getFlameGraphOutputWriter();
 
         long processedEvents = 0;
-        
+
         view.setFilter(new IEventFilter() {
             @Override
             public boolean accept(IEvent event) {
-                return eventType.getName().equals(event.getEventType().getName());
+                return eventSet.contains(event.getEventType().getName());
             }
         });
-        
+
         checkEventType(view);
 
         for (IEvent event : view) {
             // Filter for the specified event type, defaults to method profiling
             // if not specified.
             String name = event.getEventType().getName();
-            if (eventType.getName().equals(name)) {
+            if (eventSet.contains(name)) {
                 long eventStartTimestamp = event.getStartTimestamp();
                 long eventEndTimestamp = event.getEndTimestamp();
                 if (filter && !filter(eventStartTimestamp, eventEndTimestamp)) {
@@ -160,9 +188,9 @@ public final class JFRToFlameGraphWriter {
                 if (flrStackTrace != null) {
                     Stack<String> stack = getStack(event);
                     Long value = 1L;
-                    if (eventType.isAllocation()) {
-                        value = (Long) event.getValue(EVENT_ALLOCATION_SIZE);
-                    }
+                    //if (eventType.isAllocation()) {
+                    //    value = (Long) event.getValue(EVENT_ALLOCATION_SIZE);
+                    //}
                     flameGraphOutputWriter.processEvent(eventStartTimestamp, eventEndTimestamp, event.getDuration(),
                             stack, value);
 
@@ -184,7 +212,7 @@ public final class JFRToFlameGraphWriter {
     private void checkEventType(IView view) {
         boolean found = false;
         for (IEventType type : view.getEventTypes()) {
-            if(type.getName().equals(eventType.getName())) {
+            if(eventSet.contains(type.getName())) {
                 found = true;
                 break;
             }
@@ -195,7 +223,7 @@ public final class JFRToFlameGraphWriter {
     }
 
     private void noEventsExit() {
-        System.err.println("There are no events for type: [" + eventType + "]");
+        System.err.println("There are no events for type: [" + eventSet + "]");
         System.exit(1);
     }
 
@@ -224,7 +252,7 @@ public final class JFRToFlameGraphWriter {
         long maxEventEndTimestamp = 0;
 
         for (IEvent event : view) {
-            if (eventType.getName().equals(event.getEventType().getName())) {
+            if (eventSet.contains(event.getEventType().getName())) {
                 long eventStartTimestamp = event.getStartTimestamp();
                 long eventEndTimestamp = event.getEndTimestamp();
                 if (eventStartTimestamp < minEventStartTimestamp) {
