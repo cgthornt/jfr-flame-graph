@@ -36,13 +36,13 @@ function help {
 
 jfr_file=""
 
-while getopts "df:airsx:y:e:" opts
+while getopts "df:airsx:y:e:op:" opts
 do
   case $opts in
     f)
         jfr_file=${OPTARG}
         ;;
-    \?)
+    h)
         help
         exit 1
         ;;

@@ -29,7 +29,12 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
@@ -94,6 +99,8 @@ public final class JFRToFlameGraphWriter {
     @Parameter(names = { "-e", "--profile-type" }, description = "1. CPU profile 2. Off-CPU Profile")
     int profileType;
 
+    @Parameter(names = { "-op", "--omit-first-seen-package"}, description = "Omit packages if they are first seen at the bottom of the stack")
+    Set<String> omitFirstSeenPackages;
 
     private static final String EVENT_VALUE_STACK = "(stackTrace)";
 
@@ -304,10 +311,25 @@ public final class JFRToFlameGraphWriter {
             stack.push("Ignored");
             return stack;
         }
-        for (IMCFrame frame : flrStackTrace.getFrames()) {
-            // Push method to a stack
-            stack.push(getFrameName(frame));
+
+        List<? extends IMCFrame> frames = flrStackTrace.getFrames();
+        Collections.reverse(frames);
+
+        LinkedList<String> names = new LinkedList<>();
+        boolean isFirstFrame = true;
+        for(IMCFrame f : frames) {
+            String name = getFrameName(f);
+
+            if (isFirstFrame && isIgnoredPackage(name)) {
+                continue;
+            }
+
+            isFirstFrame = false;
+            names.add(name);
         }
+
+        Collections.reverse(names);
+        stack.addAll(names);
         return stack;
     }
 
@@ -321,6 +343,10 @@ public final class JFRToFlameGraphWriter {
             methodBuilder.append(frame.getFrameLineNumber());
         }
         return methodBuilder.toString();
+    }
+
+    private boolean isIgnoredPackage(String frameName) {
+        return omitFirstSeenPackages.stream().anyMatch(frameName::startsWith);
     }
 
     private File decompressFile(final File compressedFile) throws IOException {
